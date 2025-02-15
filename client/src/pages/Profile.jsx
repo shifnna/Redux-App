@@ -1,12 +1,5 @@
 import { useSelector } from 'react-redux';
 import { useRef, useState, useEffect } from 'react';
-import {
-  getDownloadURL,
-  getStorage,
-  ref,
-  uploadBytesResumable,
-} from 'firebase/storage';
-import { app } from '../firebase';
 import { useDispatch } from 'react-redux';
 import {
   updateUserStart,
@@ -33,28 +26,35 @@ export default function Profile() {
       handleFileUpload(image);
     }
   }, [image]);
+
   const handleFileUpload = async (image) => {
-    const storage = getStorage(app);
-    const fileName = new Date().getTime() + image.name;
-    const storageRef = ref(storage, fileName);
-    const uploadTask = uploadBytesResumable(storageRef, image);
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setImagePercent(Math.round(progress));
-      },
-      (error) => {
-        setImageError(true);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) =>
-          setFormData({ ...formData, profilePicture: downloadURL })
-        );
+    const formData = new FormData();
+    formData.append('file', image);
+    formData.append('upload_preset', "qwxcfvrtkdszbnv");
+
+    try {
+      setImagePercent(30);
+      const cloudName = "dkjaxgcws";
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      if (data.secure_url) {
+        setImagePercent(100);
+        setFormData((prev) => ({ ...prev, profilePicture: data.secure_url }));
+      } else {
+        throw new Error('Upload failed');
       }
-    );
+    } catch (error) {
+      setImageError(true);
+      setImagePercent(0);
+    }
   };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
